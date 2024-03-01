@@ -1,6 +1,6 @@
 import Conversation from "../models/conversation.model.js";
 import Message from "../models/message.model.js";
-
+import { getReceiverSocketId, io } from "../socket/socket.js";
 export const sendMessage = async (req, res) => {
   try {
     const { message } = req.body;
@@ -28,14 +28,17 @@ export const sendMessage = async (req, res) => {
       //给消息数组加入newMessage._id
       conversation.message.push(newMessage._id);
     }
-
-    // SOCKET IO 函数
-
     // await conversation.save(); 这样运行的话会导致newMessage.save()需要等待此行代码运行完毕才能运行
     // await newMessage.save();
 
     //这样会并行运行
     await Promise.all([conversation.save(), newMessage.save()]);
+    // SOCKET IO 函数
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      //io.to(<socket_id>).emit() used to send svents to specific client
+      io.to(receiverSocketId).emit("newMessage", newMessage);
+    }
 
     res.status(201).json(newMessage);
   } catch (error) {
